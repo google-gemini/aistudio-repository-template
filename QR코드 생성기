@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QR Code Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #4a90e2;
+      --primary-hover-color: #357abd;
+      --background-color: #f4f7f6;
+      --container-bg-color: #ffffff;
+      --text-color: #333;
+      --border-color: #ddd;
+      --error-color: #d9534f;
+      --font-family: 'Roboto', sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: var(--font-family);
+      background-color: var(--background-color);
+      color: var(--text-color);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1rem;
+    }
+
+    #app {
+      background-color: var(--container-bg-color);
+      padding: 2rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      text-align: center;
+      width: 100%;
+      max-width: 500px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: #666;
+      margin-bottom: 1.5rem;
+    }
+
+    .input-container {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    #url-input {
+      flex-grow: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      transition: border-color 0.3s ease;
+    }
+
+    #url-input:focus {
+      outline: none;
+      border-color: var(--primary-color);
+      box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+    }
+
+    #generate-btn, .button {
+      background-color: var(--primary-color);
+      color: white;
+      border: none;
+      padding: 0.75rem 1.5rem;
+      font-size: 1rem;
+      font-weight: 500;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.1s ease;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    #generate-btn:hover, .button:hover {
+      background-color: var(--primary-hover-color);
+    }
+
+    #generate-btn:active, .button:active {
+      transform: translateY(1px);
+    }
+
+    #generate-btn:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+
+
+    #qr-code-container {
+      margin-top: 1.5rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    #qr-code-img {
+      max-width: 256px;
+      width: 100%;
+      height: auto;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 0.5rem;
+      background-color: white;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .error {
+      color: var(--error-color);
+      margin-top: 1rem;
+      font-weight: 500;
+    }
+
+
+    @media (max-width: 480px) {
+      #app {
+        padding: 1.5rem;
+      }
+
+      h1 {
+        font-size: 1.5rem;
+      }
+
+      .input-container {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <h1>QR Code Generator</h1>
+    <p>Enter a URL or text to generate a QR code.</p>
+    <div class="input-container">
+      <input type="text" id="url-input" placeholder="https://example.com" aria-label="URL or text input">
+      <button id="generate-btn" aria-label="Generate QR Code">Generate</button>
+    </div>
+    <div id="qr-code-container" class="hidden">
+      <img id="qr-code-img" alt="Generated QR Code">
+      <a id="download-btn" class="button" href="#" download="qrcode.png">Download QR Code</a>
+    </div>
+    <div id="error-message" class="error hidden"></div>
+  </div>
+  <script>
+    /**
+     * @license
+     * SPDX-License-Identifier: Apache-2.0
+     */
+
+    function App() {
+      const urlInput = document.getElementById('url-input');
+      const generateBtn = document.getElementById('generate-btn');
+      const qrCodeContainer = document.getElementById('qr-code-container');
+      const qrCodeImg = document.getElementById('qr-code-img');
+      const downloadBtn = document.getElementById('download-btn');
+      const errorMessage = document.getElementById('error-message');
+
+      const API_URL = 'https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=';
+
+      const generateQRCode = async () => {
+        const data = urlInput.value.trim();
+
+        // Clear previous state
+        errorMessage.classList.add('hidden');
+        errorMessage.textContent = '';
+        qrCodeContainer.classList.add('hidden');
+
+        if (!data) {
+          showError('Please enter a URL or text.');
+          return;
+        }
+
+        generateBtn.disabled = true;
+        generateBtn.textContent = 'Generating...';
+
+        try {
+          const qrUrl = `${API_URL}${encodeURIComponent(data)}`;
+          
+          // We need to fetch the image to ensure it's valid before showing it.
+          // The API returns an image directly.
+          const response = await fetch(qrUrl);
+          if (!response.ok) {
+            throw new Error('Failed to generate QR code. Please try again.');
+          }
+          
+          const imageBlob = await response.blob();
+          const imageUrl = URL.createObjectURL(imageBlob);
+
+          qrCodeImg.src = imageUrl;
+          downloadBtn.href = imageUrl;
+
+          qrCodeImg.onload = () => {
+            qrCodeContainer.classList.remove('hidden');
+          };
+
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+          showError(message);
+        } finally {
+          generateBtn.disabled = false;
+          generateBtn.textContent = 'Generate';
+        }
+      };
+      
+      const showError = (message) => {
+        errorMessage.textContent = message;
+        errorMessage.classList.remove('hidden');
+      };
+
+      generateBtn.addEventListener('click', generateQRCode);
+      urlInput.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          generateQRCode();
+        }
+      });
+    }
+
+    App();
+  </script>
+</body>
+</html>
